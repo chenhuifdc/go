@@ -368,7 +368,7 @@ func (a *Account) syncContactsAndGroups() {
 			database.Exec(`
 				INSERT OR REPLACE INTO groups(jid, name, owner_jid, participants_count, is_announce_only, updated_at)
 				VALUES(?, ?, ?, ?, ?, strftime('%s','now'))
-			`, g.JID.String(), g.Name, "", len(g.Participants), g.IsAnnounceOnly)
+			`, g.JID.String(), g.Name, "", len(g.Participants), g.IsAnnounce)
 			// 同步成员
 			for _, p := range g.Participants {
 				database.Exec(`
@@ -433,7 +433,7 @@ func (a *Account) SetGroupPrivacy(jidStr string, announceOnly bool) error {
 	if err != nil {
 		return err
 	}
-	return a.Client.SetGroupProperty(a.ctx, jid, types.GroupPropertyAnnounce, announceOnly)
+	return a.Client.SetGroupAnnounce(a.ctx, jid, announceOnly)
 }
 
 func (a *Account) GetGroupMembers(jidStr string) ([]*types.GroupParticipant, error) {
@@ -456,20 +456,20 @@ func (a *Account) GetGroupMembers(jidStr string) ([]*types.GroupParticipant, err
 func (a *Account) RemoveGroupParticipant(groupJID, userJID string) error {
 	gjid, _ := types.ParseJID(groupJID)
 	ujid, _ := types.ParseJID(userJID)
-	_, err := a.Client.UpdateGroupParticipants(a.ctx, gjid, []types.JID{ujid}, types.ParticipantChange(1)) // Remove
+	_, err := a.Client.UpdateGroupParticipants(a.ctx, gjid, []types.JID{ujid}, whatsmeow.ParticipantChangeRemove)
 	return err
 }
 
 func (a *Account) PromoteGroupParticipant(groupJID, userJID string) error {
 	gjid, _ := types.ParseJID(groupJID)
 	ujid, _ := types.ParseJID(userJID)
-	_, err := a.Client.UpdateGroupParticipants(a.ctx, gjid, []types.JID{ujid}, types.ParticipantChange(2)) // Promote
+	_, err := a.Client.UpdateGroupParticipants(a.ctx, gjid, []types.JID{ujid}, whatsmeow.ParticipantChangePromote)
 	return err
 }
 
 func (a *Account) DemoteGroupParticipant(groupJID, userJID string) error {
 	gjid, _ := types.ParseJID(groupJID)
 	ujid, _ := types.ParseJID(userJID)
-	_, err := a.Client.UpdateGroupParticipants(a.ctx, gjid, []types.JID{ujid}, types.ParticipantChange(3)) // Demote
+	_, err := a.Client.UpdateGroupParticipants(a.ctx, gjid, []types.JID{ujid}, whatsmeow.ParticipantChangeDemote)
 	return err
 }
