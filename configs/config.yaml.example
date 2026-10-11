@@ -1,0 +1,73 @@
+# WhatsApp Ops 配置文件示例
+# 复制为 config.yaml 并根据实际情况修改
+
+app:
+  name: "WhatsApp Ops"
+  version: "1.0.0"
+  data_dir: "./data"
+  debug: false          # 生产环境设为 false
+  auto_open_browser: true
+
+database:
+  main_db_path: "./data/main.db"
+  sessions_dir: "./data/sessions"
+  enable_wal: true      # SQLite WAL 模式提高并发性能
+  max_open_conns: 10
+  max_idle_conns: 5
+
+server:
+  host: "127.0.0.1"     # 生产环境可设为 0.0.0.0 监听所有接口
+  port: 8080
+  mode: "release"       # debug 或 release
+  static_dir: "./web"   # 前端静态文件目录
+
+whatsapp:
+  max_accounts: 10      # 最大同时在线账号数
+  reconnect_interval: 30 # 断线重连间隔(秒)
+  qr_refresh_interval: 20 # 二维码刷新间隔(秒)
+  message_rate_limit: 30 # 每账号每分钟消息限制
+  default_proxy: ""      # 默认代理，留空直连。示例: socks5://127.0.0.1:7890
+  auto_reconnect: true   # 自动重连
+  sync_contacts: true    # 自动同步联系人和群组到本地
+
+translation:
+  enabled: true          # 是否启用翻译功能
+  provider: "openai_compatible"  # 目前仅支持 openai_compatible
+  base_url: "https://api.openai.com/v1"  # API 域名
+  api_key: ""            # 必填：翻译 API Key (建议通过环境变量 WAOPS_TRANSLATION_API_KEY 设置)
+  model: "gpt-4o-mini"   # 使用的模型
+  prompt_template: |
+    你是专业的跨境电商翻译助手。
+    将以下内容翻译为 {{.TargetLang}}，保持商务礼貌语气，
+    专业术语保留英文，表情符号保留原样。
+    只返回翻译结果，不要解释。
+    原文: {{.Text}}
+  target_lang: "zh-CN"   # 默认目标语言
+  timeout: 30            # 请求超时(秒)
+
+risk:
+  enabled: true          # 是否启用风控
+  l1_enabled: true       # L1 垃圾广告过滤
+  l2_enabled: true       # L2 敏感违规过滤
+  l3_enabled: true       # L3 行为分析
+  words_dir: "./data/risk_words"  # 风控词库目录
+  auto_action: false     # 是否自动执行动作 (删/警/踢)
+  default_action: "warn" # 默认动作: log/warn/delete/kick
+  l3_window_size: 60     # L3 行为分析窗口大小(秒)
+  l3_max_msg_per_min: 20 # 单分钟最大消息数阈值
+  l3_max_mention_per_min: 5 # 单分钟最大@次数阈值
+
+broadcast:
+  enabled: true          # 是否启用群发功能
+  default_interval: 2000 # 群间发送间隔(毫秒)
+  max_concurrent: 3      # 每账号最大并发发送数
+  retry_count: 2         # 发送失败重试次数
+  retry_interval: 5      # 重试间隔(秒)
+
+log:
+  level: "info"          # 日志级别: debug/info/warn/error
+  dir: "./data/logs"     # 日志目录
+  max_size: 100          # 单个日志文件最大尺寸(MB)
+  max_backups: 7         # 保留日志文件数量
+  max_age: 30            # 日志保留天数
+  compress: true         # 是否压缩旧日志

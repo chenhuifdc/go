@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp Ops - 运营管理平台</title>
+    <link rel="stylesheet" href="css/app.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📱</text></svg>">
+</head>
+<body>
+    <div id="app">
+        <!-- 顶部导航 -->
+        <header class="header">
+            <div class="header-left">
+                <h1 class="logo">
+                    <span class="logo-icon">📱</span>
+                    WhatsApp Ops
+                </h1>
+                <nav class="tabs" id="mainTabs" role="tablist">
+                    <button class="tab active" data-tab="dashboard" role="tab" aria-selected="true">仪表盘</button>
+                    <button class="tab" data-tab="accounts" role="tab" aria-selected="false">账号管理</button>
+                    <button class="tab" data-tab="contacts" role="tab" aria-selected="false">联系人管理</button>
+                    <button class="tab" data-tab="groups" role="tab" aria-selected="false">群组管理</button>
+                    <button class="tab" data-tab="broadcast" role="tab" aria-selected="false">群发任务</button>
+                    <button class="tab" data-tab="risk" role="tab" aria-selected="false">风控中心</button>
+                    <button class="tab" data-tab="settings" role="tab" aria-selected="false">系统设置</button>
+                </nav>
+            </div>
+            <div class="header-right">
+                <div class="status-indicator" id="serverStatus">
+                    <span class="dot"></span>
+                    <span>服务运行中</span>
+                </div>
+                <button class="btn btn-primary" id="refreshBtn" title="刷新数据">⟳</button>
+            </div>
+        </header>
+
+        <!-- 主内容区 -->
+        <main class="main-content">
+            <!-- 仪表盘 -->
+            <section class="tab-panel active" id="panel-dashboard" role="tabpanel">
+                <div class="panel-header">
+                    <h2>仪表盘</h2>
+                    <div class="panel-actions">
+                        <button class="btn btn-secondary" id="syncAllBtn">同步所有数据</button>
+                    </div>
+                </div>
+                <div class="stats-grid" id="statsGrid">
+                    <!-- 统计卡片将由 JS 渲染 -->
+                </div>
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <h3>消息趋势 (24h)</h3>
+                        <canvas id="msgChart"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3>账号状态分布</h3>
+                        <canvas id="accountChart"></canvas>
+                    </div>
+                </div>
+                <div class="recent-activity">
+                    <h3>最近活动</h3>
+                    <div class="table-container">
+                        <table id="recentActivityTable">
+                            <thead>
+                                <tr>
+                                    <th>时间</th>
+                                    <th>账号</th>
+                                    <th>类型</th>
+                                    <th>内容</th>
+                                    <th>状态</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 账号管理 -->
+            <section class="tab-panel" id="panel-accounts" role="tabpanel">
+                <div class="panel-header">
+                    <h2>账号管理</h2>
+                    <div class="panel-actions">
+                        <button class="btn btn-primary" id="addAccountBtn">+ 添加账号</button>
+                    </div>
+                </div>
+                <div class="accounts-grid" id="accountsGrid">
+                    <!-- 账号卡片将由 JS 渲染 -->
+                </div>
+            </section>
+
+            <!-- 联系人管理 -->
+            <section class="tab-panel" id="panel-contacts" role="tabpanel">
+                <div class="panel-header">
+                    <h2>联系人管理</h2>
+                    <div class="panel-actions">
+                        <input type="text" class="search-input" id="contactSearch" placeholder="搜索姓名/手机号/备注...">
+                        <select id="contactTagFilter" class="form-control" style="width: auto; min-width: 150px;">
+                            <option value="">全部标签</option>
+                        </select>
+                        <button class="btn btn-primary" id="addContactBtn">+ 新建联系人</button>
+                        <button class="btn btn-secondary" id="importContactsBtn">导入</button>
+                        <button class="btn btn-secondary" id="exportContactsBtn">导出</button>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table id="contactsTable">
+                        <thead>
+                            <tr>
+                                <th>备注名</th>
+                                <th>手机号</th>
+                                <th>JID</th>
+                                <th>标签</th>
+                                <th>备注</th>
+                                <th>来源</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="contactsPagination"></div>
+            </section>
+
+            <!-- 群组管理 -->
+            <section class="tab-panel" id="panel-groups" role="tabpanel">
+                <div class="panel-header">
+                    <h2>群组管理</h2>
+                    <div class="panel-actions">
+                        <input type="text" class="search-input" id="groupSearch" placeholder="搜索群名...">
+                        <button class="btn btn-secondary" id="syncGroupsBtn">同步群组</button>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table id="groupsTable">
+                        <thead>
+                            <tr>
+                                <th>群名称</th>
+                                <th>群主</th>
+                                <th>成员数</th>
+                                <th>状态</th>
+                                <th>创建时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- 群发任务 -->
+            <section class="tab-panel" id="panel-broadcast" role="tabpanel">
+                <div class="panel-header">
+                    <h2>群发任务</h2>
+                    <div class="panel-actions">
+                        <button class="btn btn-primary" id="createBroadcastBtn">+ 创建群发任务</button>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table id="broadcastTable">
+                        <thead>
+                            <tr>
+                                <th>任务名称</th>
+                                <th>账号</th>
+                                <th>目标群数</th>
+                                <th>已发/总计</th>
+                                <th>状态</th>
+                                <th>创建时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- 风控中心 -->
+            <section class="tab-panel" id="panel-risk" role="tabpanel">
+                <div class="panel-header">
+                    <h2>风控中心</h2>
+                    <div class="panel-actions">
+                        <button class="btn btn-secondary" id="viewRiskEventsBtn">查看事件日志</button>
+                        <button class="btn btn-secondary" id="manageRulesBtn">管理规则</button>
+                        <button class="btn btn-secondary" id="manageWordsBtn">管理词库</button>
+                    </div>
+                </div>
+                <div class="risk-overview">
+                    <div class="risk-stats">
+                        <div class="stat-card danger">
+                            <span class="stat-value" id="riskL1Count">0</span>
+                            <span class="stat-label">L1 垃圾广告</span>
+                        </div>
+                        <div class="stat-card danger">
+                            <span class="stat-value" id="riskL2Count">0</span>
+                            <span class="stat-label">L2 敏感违规</span>
+                        </div>
+                        <div class="stat-card warning">
+                            <span class="stat-value" id="riskL3Count">0</span>
+                            <span class="stat-label">L3 可疑行为</span>
+                        </div>
+                        <div class="stat-card info">
+                            <span class="stat-value" id="riskTotalCount">0</span>
+                            <span class="stat-label">今日总拦截</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table id="riskEventsTable">
+                        <thead>
+                            <tr>
+                                <th>时间</th>
+                                <th>账号</th>
+                                <th>群组</th>
+                                <th>用户</th>
+                                <th>等级</th>
+                                <th>规则</th>
+                                <th>匹配内容</th>
+                                <th>动作</th>
+                                <th>状态</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- 系统设置 -->
+            <section class="tab-panel" id="panel-settings" role="tabpanel">
+                <div class="panel-header">
+                    <h2>系统设置</h2>
+                </div>
+                <div class="settings-grid">
+                    <div class="settings-card">
+                        <h3>翻译设置</h3>
+                        <form id="translationForm">
+                            <div class="form-group">
+                                <label>启用翻译</label>
+                                <label class="switch">
+                                    <input type="checkbox" id="transEnabled">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label>服务商</label>
+                                <select id="transProvider" class="form-control">
+                                    <option value="openai_compatible">OpenAI 兼容</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Base URL</label>
+                                <input type="url" id="transBaseUrl" class="form-control" placeholder="https://api.openai.com/v1">
+                            </div>
+                            <div class="form-group">
+                                <label>API Key</label>
+                                <input type="password" id="transApiKey" class="form-control" placeholder="sk-...">
+                            </div>
+                            <div class="form-group">
+                                <label>模型</label>
+                                <input type="text" id="transModel" class="form-control" placeholder="gpt-4o-mini">
+                            </div>
+                            <div class="form-group">
+                                <label>目标语言</label>
+                                <select id="transTargetLang" class="form-control">
+                                    <option value="zh-CN">中文 (简体)</option>
+                                    <option value="zh-TW">中文 (繁体)</option>
+                                    <option value="en">English</option>
+                                    <option value="ja">日本語</option>
+                                    <option value="ko">한국어</option>
+                                    <option value="es">Español</option>
+                                    <option value="fr">Français</option>
+                                    <option value="de">Deutsch</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Prompt 模板</label>
+                                <textarea id="transPrompt" class="form-control" rows="6" placeholder="使用 {{.Text}} 代表原文，{{.TargetLang}} 代表目标语言"></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-primary">保存设置</button>
+                        </form>
+                    </div>
+                    <div class="settings-card">
+                        <h3>风控设置</h3>
+                        <form id="riskForm">
+                            <div class="form-group">
+                                <label>启用风控</label>
+                                <label class="switch">
+                                    <input type="checkbox" id="riskEnabled">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>L1 垃圾广告</label>
+                                    <label class="switch">
+                                        <input type="checkbox" id="riskL1Enabled">
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                                <div class="form-group">
+                                    <label>L2 敏感违规</label>
+                                    <label class="switch">
+                                        <input type="checkbox" id="riskL2Enabled">
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                                <div class="form-group">
+                                    <label>L3 行为分析</label>
+                                    <label class="switch">
+                                        <input type="checkbox" id="riskL3Enabled">
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>自动执行动作</label>
+                                    <label class="switch">
+                                        <input type="checkbox" id="riskAutoAction">
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                                <div class="form-group">
+                                    <label>默认动作</label>
+                                    <select id="riskDefaultAction" class="form-control">
+                                        <option value="log">仅记录</option>
+                                        <option value="warn">警告</option>
+                                        <option value="delete">删除消息</option>
+                                        <option value="kick">踢出群聊</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>L3 窗口大小 (秒)</label>
+                                    <input type="number" id="riskL3Window" class="form-control" value="60">
+                                </div>
+                                <div class="form-group">
+                                    <label>单分钟最大消息数</label>
+                                    <input type="number" id="riskL3MaxMsg" class="form-control" value="20">
+                                </div>
+                                <div class="form-group">
+                                    <label>单分钟最大@次数</label>
+                                    <input type="number" id="riskL3MaxMention" class="form-control" value="5">
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary">保存设置</button>
+                        </form>
+                    </div>
+                    <div class="settings-card">
+                        <h3>群发设置</h3>
+                        <form id="broadcastForm">
+                            <div class="form-group">
+                                <label>启用群发</label>
+                                <label class="switch">
+                                    <input type="checkbox" id="broadcastEnabled">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>群间间隔 (毫秒)</label>
+                                    <input type="number" id="broadcastInterval" class="form-control" value="2000">
+                                </div>
+                                <div class="form-group">
+                                    <label>最大并发数</label>
+                                    <input type="number" id="broadcastConcurrent" class="form-control" value="3">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>重试次数</label>
+                                    <input type="number" id="broadcastRetry" class="form-control" value="2">
+                                </div>
+                                <div class="form-group">
+                                    <label>重试间隔 (秒)</label>
+                                    <input type="number" id="broadcastRetryInterval" class="form-control" value="5">
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary">保存设置</button>
+                        </form>
+                    </div>
+                    <div class="settings-card">
+                        <h3>账号设置</h3>
+                        <form id="accountForm">
+                            <div class="form-group">
+                                <label>最大账号数</label>
+                                <input type="number" id="maxAccounts" class="form-control" value="10">
+                            </div>
+                            <div class="form-group">
+                                <label>重连间隔 (秒)</label>
+                                <input type="number" id="reconnectInterval" class="form-control" value="30">
+                            </div>
+                            <div class="form-group">
+                                <label>二维码刷新间隔 (秒)</label>
+                                <input type="number" id="qrRefreshInterval" class="form-control" value="20">
+                            </div>
+                            <div class="form-group">
+                                <label>单账号每分钟消息限制</label>
+                                <input type="number" id="msgRateLimit" class="form-control" value="30">
+                            </div>
+                            <div class="form-group">
+                                <label>默认代理</label>
+                                <input type="text" id="defaultProxy" class="form-control" placeholder="socks5://user:pass@ip:port 或留空直连">
+                            </div>
+                            <div class="form-group">
+                                <label>自动重连</label>
+                                <label class="switch">
+                                    <input type="checkbox" id="autoReconnect" checked>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label>自动同步联系人/群组</label>
+                                <label class="switch">
+                                    <input type="checkbox" id="syncContacts" checked>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            <button type="submit" class="btn btn-primary">保存设置</button>
+                        </form>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- 模态框容器 -->
+    <div class="modal-overlay" id="modalOverlay"></div>
+
+    <!-- 账号编辑/添加模态框 -->
+    <div class="modal" id="accountModal" role="dialog" aria-labelledby="accountModalTitle" aria-modal="true">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="accountModalTitle">添加账号</h3>
+                <button class="modal-close" id="accountModalClose" aria-label="关闭">&times;</button>
+            </div>
+            <form id="accountFormModal" class="modal-body">
+                <input type="hidden" id="accountModalId">
+                <div class="form-group">
+                    <label for="accountName">账号名称 <span class="required">*</span></label>
+                    <input type="text" id="accountName" class="form-control" placeholder="例如: 主力号、客服1、营销号" required>
+                </div>
+                <div class="form-group">
+                    <label for="accountPhone">手机号 (可选)</label>
+                    <input type="tel" id="accountPhone" class="form-control" placeholder="+86 138 0000 0000">
+                </div>
+                <div class="form-group">
+                    <label for="accountProxy">代理地址</label>
+                    <input type="text" id="accountProxy" class="form-control" placeholder="socks5://user:pass@ip:port 或 http://ip:port，留空直连">
+                    <small class="form-hint">支持 SOCKS5 和 HTTP 代理，格式: socks5://user:pass@host:port</small>
+                </div>
+                <div class="form-group">
+                    <label for="accountAutoReconnect">自动重连</label>
+                    <label class="switch">
+                        <input type="checkbox" id="accountAutoReconnect" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label for="accountSyncContacts">自动同步联系人/群组</label>
+                    <label class="switch">
+                        <input type="checkbox" id="accountSyncContacts" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="accountModalCancel">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 二维码模态框 -->
+    <div class="modal" id="qrModal" role="dialog" aria-labelledby="qrModalTitle" aria-modal="true">
+        <div class="modal-content qr-modal-content">
+            <div class="modal-header">
+                <h3 id="qrModalTitle">扫码登录</h3>
+                <button class="modal-close" id="qrModalClose" aria-label="关闭">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="qr-container">
+                    <div id="qrCodeImage"></div>
+                    <p class="qr-hint">请使用 WhatsApp 扫描二维码登录</p>
+                    <p class="qr-timer" id="qrTimer">二维码将在 <span id="qrCountdown">20</span> 秒后自动刷新</p>
+                </div>
+                <div class="qr-actions">
+                    <button class="btn btn-secondary" id="qrRefreshBtn">立即刷新</button>
+                    <button class="btn btn-danger" id="qrCancelBtn">取消登录</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 联系人编辑/添加模态框 -->
+    <div class="modal" id="contactModal" role="dialog" aria-labelledby="contactModalTitle" aria-modal="true">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="contactModalTitle">添加联系人</h3>
+                <button class="modal-close" id="contactModalClose" aria-label="关闭">&times;</button>
+            </div>
+            <form id="contactFormModal" class="modal-body">
+                <input type="hidden" id="contactModalId">
+                <div class="form-group">
+                    <label for="contactJid">JID <span class="required">*</span></label>
+                    <input type="text" id="contactJid" class="form-control" placeholder="例如: 8613800000000@s.whatsapp.net" required>
+                </div>
+                <div class="form-group">
+                    <label for="contactName">备注名 <span class="required">*</span></label>
+                    <input type="text" id="contactName" class="form-control" placeholder="例如: 张三、客户李四" required>
+                </div>
+                <div class="form-group">
+                    <label for="contactPhone">手机号</label>
+                    <input type="tel" id="contactPhone" class="form-control" placeholder="+86 138 0000 0000">
+                </div>
+                <div class="form-group">
+                    <label for="contactAvatar">头像 URL</label>
+                    <input type="url" id="contactAvatar" class="form-control" placeholder="https://example.com/avatar.jpg">
+                </div>
+                <div class="form-group">
+                    <label for="contactTags">标签</label>
+                    <select id="contactTags" class="form-control" multiple style="min-height: 100px;">
+                        <option value="">无可用标签</option>
+                    </select>
+                    <small class="form-hint">按住 Ctrl/Cmd 可多选</small>
+                </div>
+                <div class="form-group">
+                    <label for="contactNotes">备注</label>
+                    <textarea id="contactNotes" class="form-control" rows="3" placeholder="备注信息..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="contactSource">来源</label>
+                    <select id="contactSource" class="form-control">
+                        <option value="manual">手动添加</option>
+                        <option value="import">批量导入</option>
+                        <option value="whatsapp">WhatsApp 同步</option>
+                        <option value="group">群组成员</option>
+                        <option value="broadcast">群发互动</option>
+                    </select>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="contactModalCancel">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 导入联系人模态框 -->
+    <div class="modal" id="importModal" role="dialog" aria-labelledby="importModalTitle" aria-modal="true">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3 id="importModalTitle">导入联系人</h3>
+                <button class="modal-close" id="importModalClose" aria-label="关闭">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>CSV 文件 <span class="required">*</span></label>
+                    <input type="file" id="importFile" accept=".csv,.txt" required>
+                </div>
+                <div class="form-group">
+                    <label>字段映射</label>
+                    <div class="import-fields" id="importFields"></div>
+                </div>
+                <div class="form-group">
+                    <label for="importDefaultTag">默认标签</label>
+                    <select id="importDefaultTag" class="form-control">
+                        <option value="">无</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="importSource">来源标记</label>
+                    <select id="importSource" class="form-control">
+                        <option value="import">批量导入</option>
+                        <option value="manual">手动添加</option>
+                    </select>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="importModalCancel">取消</button>
+                    <button type="button" class="btn btn-primary" id="importConfirmBtn">开始导入</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast 容器 -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- 脚本 -->
+    <script src="js/api.js"></script>
+    <script src="js/store.js"></script>
+    <script src="js/pages/dashboard.js"></script>
+    <script src="js/pages/accounts.js"></script>
+    <script src="js/pages/contacts.js"></script>
+    <script src="js/pages/groups.js"></script>
+    <script src="js/pages/broadcast.js"></script>
+    <script src="js/pages/risk.js"></script>
+    <script src="js/pages/settings.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
